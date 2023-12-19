@@ -1,7 +1,7 @@
 package main
 
 import (
-	zengin "Kyash/zengin/parser"
+	"Kyash/zengin"
 	"log"
 	"os"
 )

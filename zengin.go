@@ -57,6 +57,8 @@ func guessEncoding(file Reader) (*bufio.Scanner, zengin.Encoding, error) {
 func parse(file Reader) ([]zengin.Transfer, error) {
 
 	scanner, encoding, err := guessEncoding(file)
+	//tmp
+	fmt.Printf("encoding: %v\n", encoding)
 	if err != nil {
 		return nil, err
 	}
@@ -70,6 +72,8 @@ func parse(file Reader) ([]zengin.Transfer, error) {
 		var err error
 		switch {
 		case zengin.IsHeader(line):
+			//tmp
+			fmt.Printf("Recoginized header: %v\n", line)
 
 			var data []zengin.Data
 			var trailer zengin.Trailer
@@ -86,6 +90,8 @@ func parse(file Reader) ([]zengin.Transfer, error) {
 					if !zengin.IsTrailer(line) {
 						return nil, errors.New("unexpected record type: " + line)
 					}
+					//tmp
+					fmt.Printf("Recoginized trailer: %v\n", line)
 					trailer, err = parseTrailer(line)
 					newTransfers, err := createTransfers(header, data, trailer)
 					if err != nil {
@@ -95,6 +101,9 @@ func parse(file Reader) ([]zengin.Transfer, error) {
 					break
 				}
 
+				//tmp
+				fmt.Printf("Recoginized data: %v\n", line)
+
 				record, err := parseData(line)
 				if err != nil {
 					return nil, err
@@ -103,6 +112,8 @@ func parse(file Reader) ([]zengin.Transfer, error) {
 				data = append(data, record)
 			}
 		case zengin.IsEndRecord(line):
+			//tmp
+			fmt.Printf("Recoginized end record: %v\n", line)
 			continue
 		default:
 			return nil, errors.New("unknown record type: " + line)
