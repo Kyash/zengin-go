@@ -4,7 +4,11 @@ import (
 	zengin "Kyash/zengin/internal"
 	"bufio"
 	"errors"
+	"golang.org/x/net/html/charset"
+	"golang.org/x/text/encoding/japanese"
+	"golang.org/x/text/transform"
 	"io"
+	"log"
 	"strings"
 )
 
@@ -22,8 +26,29 @@ func ParseFile(reader Reader) ([][]string, error) {
 	return zengin.ConvertToTable(transfers), nil
 }
 
-func parse(reader Reader) ([]zengin.Transfer, error) {
-	scanner := bufio.NewScanner(reader)
+func parse(file Reader) ([]zengin.Transfer, error) {
+
+	var encoding zengin.Encoding
+	reader := bufio.NewReader(file)
+	peekBytes, err := reader.Peek(1024)
+	if err != nil && err != io.EOF {
+		log.Fatal("couldn't read from file", "error", err)
+		return nil, err
+	}
+
+	// Ignore "certain" (3rd value), as during testing it was always false, even though it correctly detects utf-8.
+	_, name, _ := charset.DetermineEncoding(peekBytes, "")
+
+	var scanner *bufio.Scanner
+	switch name {
+	case "utf-8":
+		encoding = zengin.EncodingUTF8
+		scanner = bufio.NewScanner(reader)
+	// Shift-JIS can't be reliably detected, so we'll assume it's Shift-JIS if it's not UTF-8.
+	default:
+		encoding = zengin.EncodingShiftJIS
+		scanner = bufio.NewScanner(transform.NewReader(reader, japanese.ShiftJIS.NewDecoder()))
+	}
 
 	var transfers []zengin.Transfer
 	var endFound bool
@@ -39,7 +64,7 @@ func parse(reader Reader) ([]zengin.Transfer, error) {
 		var err error
 		switch {
 		case zengin.IsHeader(line):
-			header, err = parseHeader(line)
+			header, err = parseHeader(line, encoding)
 		case zengin.IsData(line):
 			record, err = parseData(line)
 			data = append(data, record)
@@ -75,7 +100,7 @@ func createTransfers(header zengin.Header, data []zengin.Data, trailer zengin.Tr
 	return []zengin.Transfer{}
 }
 
-func parseHeader(line string) (zengin.Header, error) {
+func parseHeader(line string, encoding zengin.Encoding) (zengin.Header, error) {
 	if len(line) < 120 { // Ensure line has enough characters
 		return zengin.Header{}, errors.New("header line too short")
 	}
@@ -101,14 +126,14 @@ func parseHeader(line string) (zengin.Header, error) {
 	}
 
 	encodingType := line[3:4]
-	if encodingType != "0" {
+	if encoding == zengin.EncodingShiftJIS && encodingType != "0" {
 		return zengin.Header{}, errors.New("unsupported encoding type: " + encodingType)
 	}
 	header.EncodingType = encodingType
 
 	senderCode, err := parseSenderCode(line[4:14])
 	if err != nil {
-		return zengin.Header{}, errors.New("invalid sender code: " + err)
+		return zengin.Header{}, errors.New("invalid sender code: " + err.Error())
 	}
 	header.SenderCode = senderCode
 

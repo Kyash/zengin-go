@@ -5,6 +5,13 @@ import (
 	"time"
 )
 
+type Encoding int
+
+const (
+	EncodingShiftJIS Encoding = iota
+	EncodingUTF8
+)
+
 type Transfer struct {
 	SenderName    string
 	TransferDate  time.Time
