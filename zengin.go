@@ -4,6 +4,7 @@ import (
 	zengin "Kyash/zengin/internal"
 	"bufio"
 	"errors"
+	"fmt"
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/encoding/japanese"
 	"golang.org/x/text/transform"
@@ -126,7 +127,7 @@ func createTransfers(header zengin.Header, data []zengin.Data, trailer zengin.Tr
 }
 
 func parseHeader(line string, encoding zengin.Encoding) (zengin.Header, error) {
-	if len(line) < 120 { // Ensure line has enough characters
+	if len(line) < 103 { // Ensure line has enough characters
 		return zengin.Header{}, errors.New("header line too short")
 	}
 
@@ -184,7 +185,17 @@ func parseHeader(line string, encoding zengin.Encoding) (zengin.Header, error) {
 
 	header.BranchName = strings.TrimSpace(line[80:95])
 
-	header.AccountType = line[95:96]
+	accountType := line[95:96]
+	switch accountType {
+	case "1":
+		header.AccountType = zengin.AccountTypeRegular
+	case "2":
+		header.AccountType = zengin.AccountTypeChecking
+	case "4":
+		header.AccountType = zengin.AccountTypeSavings
+	default:
+		return zengin.Header{}, errors.New("invalid account type: " + accountType)
+	}
 
 	header.AccountNumber = line[96:103]
 
@@ -199,7 +210,70 @@ func parseSenderCode(senderCode string) (string, error) {
 }
 
 func parseData(line string) (zengin.Data, error) {
-	return zengin.Data{}, nil
+	if len(line) < 106 { // Ensure the line is of expected length
+		return zengin.Data{}, errors.New("data line too short")
+	}
+
+	data := zengin.Data{}
+
+	recordType := line[0:1]
+	if recordType != "2" {
+		return zengin.Data{}, errors.New("data record type is not 2")
+	}
+	data.RecordType = recordType
+
+	bankCode := line[1:5]
+	if _, err := strconv.Atoi(bankCode); err != nil {
+		return zengin.Data{}, errors.New("invalid bank code: contains non-numeric characters")
+	}
+	data.RecipientBankCode = bankCode
+
+	data.RecipientBankName = strings.TrimSpace(line[5:20])
+	recipientBranchCode := line[20:23]
+	if _, err := strconv.Atoi(recipientBranchCode); err != nil {
+		return zengin.Data{}, errors.New("invalid recipient branch code: contains non-numeric characters")
+	}
+	data.RecipientBranchCode = recipientBranchCode
+
+	data.RecipientBranchName = strings.TrimSpace(line[23:38])
+
+	exchangeOfficeCode := line[38:42] // unused
+	if _, err := strconv.Atoi(exchangeOfficeCode); err != nil {
+		return zengin.Data{}, errors.New("invalid exchange office code: contains non-numeric characters")
+	}
+	data.ExchangeOfficeCode = exchangeOfficeCode
+
+	accountType := line[42:43]
+	switch accountType {
+	case "1":
+		data.AccountType = zengin.AccountTypeRegular
+	case "2":
+		data.AccountType = zengin.AccountTypeChecking
+	case "4":
+		data.AccountType = zengin.AccountTypeSavings
+	default:
+		return zengin.Data{}, errors.New("invalid account type: " + accountType)
+	}
+
+	accountNumber := line[43:50]
+	if _, err := strconv.Atoi(accountNumber); err != nil {
+		return zengin.Data{}, errors.New("invalid account number: contains non-numeric characters")
+	}
+
+	data.RecipientName = strings.TrimSpace(line[50:80])
+
+	// Parse transfer amount as integer
+	amount, err := strconv.ParseUint(strings.TrimSpace(line[80:90]), 10, 64)
+	if err != nil {
+		return zengin.Data{}, fmt.Errorf("invalid transfer amount: %v", err)
+	}
+	data.TransferAmount = amount
+
+	data.NewCode = line[90:91] // unused
+	data.CustomerCode1 = strings.TrimSpace(line[91:101])
+	data.CustomerCode2 = strings.TrimSpace(line[101:111])
+
+	return data, nil
 }
 
 func parseTrailer(line string) (zengin.Trailer, error) {

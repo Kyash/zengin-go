@@ -34,9 +34,18 @@ type Record struct {
 type CategoryCode int
 
 const (
-	CategoryCodeCombination CategoryCode = 1
-	CategoryCodePayment     CategoryCode = 2
-	CategoryCodeBonus       CategoryCode = 3
+	CategoryCodeCombination CategoryCode = iota
+	CategoryCodePayment     CategoryCode = iota
+	CategoryCodeBonus       CategoryCode = iota
+)
+
+type AccountType int
+
+const (
+	AccountTypeUndefined AccountType = iota
+	AccountTypeRegular   AccountType = iota
+	AccountTypeChecking  AccountType = iota
+	AccountTypeSavings   AccountType = iota
 )
 
 type Header struct {
@@ -50,12 +59,25 @@ type Header struct {
 	BankName        string       // 15 characters
 	BranchCode      string       // 3 digits
 	BranchName      string       // 15 characters
-	AccountType     string       // 1 digit
+	AccountType     AccountType  // 1 digit
 	AccountNumber   string       // 7 digits
 	Dummy           string       // 17 characters (unused)
 }
 
 type Data struct {
+	RecordType          string      // 1 digit
+	RecipientBankCode   string      // 4 digits
+	RecipientBankName   string      // 15 characters
+	RecipientBranchCode string      // 3 digits
+	RecipientBranchName string      // 15 characters
+	ExchangeOfficeCode  string      // 4 digits (unused)
+	AccountType         AccountType // 1 digit
+	AccountNumber       string      // 7 digits
+	RecipientName       string      // 30 characters
+	TransferAmount      uint64      // 10 digits
+	NewCode             string      // 1 digit (unused)
+	CustomerCode1       string      // 10 characters
+	CustomerCode2       string      // 10 characters
 }
 
 type Trailer struct {
