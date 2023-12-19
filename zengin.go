@@ -127,7 +127,7 @@ func createTransfers(header zengin.Header, data []zengin.Data, trailer zengin.Tr
 }
 
 func parseHeader(line string, encoding zengin.Encoding) (zengin.Header, error) {
-	if len(line) < 103 { // Ensure line has enough characters
+	if len(line) < zengin.HeaderLength { // Ensure line has enough characters
 		return zengin.Header{}, errors.New("header line too short")
 	}
 
@@ -210,7 +210,7 @@ func parseSenderCode(senderCode string) (string, error) {
 }
 
 func parseData(line string) (zengin.Data, error) {
-	if len(line) < 106 { // Ensure the line is of expected length
+	if len(line) < zengin.DataLength { // Ensure the line is of expected length
 		return zengin.Data{}, errors.New("data line too short")
 	}
 
@@ -272,14 +272,41 @@ func parseData(line string) (zengin.Data, error) {
 	data.NewCode = line[90:91] // unused
 	data.CustomerCode1 = strings.TrimSpace(line[91:101])
 	data.CustomerCode2 = strings.TrimSpace(line[101:111])
+	data.EDIInformation = strings.TrimSpace(line[111:131])
+	data.TransferCategory = line[131:132] // unused
+	if _, err := strconv.Atoi(data.TransferCategory); err != nil {
+		return zengin.Data{}, errors.New("invalid transfer category: contains non-numeric characters")
+	}
+	data.Identification = line[132:133]
 
 	return data, nil
 }
 
 func parseTrailer(line string) (zengin.Trailer, error) {
-	return zengin.Trailer{}, nil
-}
+	if len(line) < zengin.TrailerLength { // Ensure the line is of expected length
+		return zengin.Trailer{}, errors.New("trailer line too short")
+	}
 
-func parseEndRecord(line string) (zengin.EndRecord, error) {
-	return zengin.EndRecord{}, nil
+	trailer := zengin.Trailer{
+		RecordType: line[0:1],
+	}
+	if trailer.RecordType != "8" {
+		return zengin.Trailer{}, errors.New("invalid record type for trailer")
+	}
+
+	// Parse TotalCount as integer
+	totalCount, err := strconv.Atoi(line[1:7])
+	if err != nil {
+		return zengin.Trailer{}, fmt.Errorf("invalid total count: %v", err)
+	}
+	trailer.TotalCount = totalCount
+
+	// Parse TotalAmount as integer
+	totalAmount, err := strconv.ParseUint(line[7:19], 10, 64)
+	if err != nil {
+		return zengin.Trailer{}, fmt.Errorf("invalid total amount: %v", err)
+	}
+	trailer.TotalAmount = totalAmount
+
+	return trailer, nil
 }

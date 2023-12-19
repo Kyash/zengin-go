@@ -8,6 +8,13 @@ import (
 type Encoding int
 
 const (
+	HeaderLength  = 120 // 103?
+	DataLength    = 120 // 106?
+	TrailerLength = 120 // 19?
+	EndLength     = 120 // 1?
+)
+
+const (
 	EncodingUndefined Encoding = iota
 	EncodingShiftJIS  Encoding = iota
 	EncodingUTF8
@@ -22,13 +29,6 @@ type Transfer struct {
 	AccountNumber string
 	AccountName   string
 	Amount        uint64
-}
-
-type Record struct {
-	Header    Header
-	Data      []Data
-	Trailer   Trailer
-	EndRecord EndRecord
 }
 
 type CategoryCode int
@@ -78,30 +78,42 @@ type Data struct {
 	NewCode             string      // 1 digit (unused)
 	CustomerCode1       string      // 10 characters
 	CustomerCode2       string      // 10 characters
+	EDIInformation      string      // 20 characters
+	TransferCategory    string      // 1 digit (unused)
+	Identification      string      // 1 character
+	Dummy               string      // 7 characters (unused)
 }
 
 type Trailer struct {
+	RecordType  string // 1 digit
+	TotalCount  int    // 6 digits
+	TotalAmount uint64 // 12 digits
+	Dummy       string // 101 characters (unused)
 }
 
-type EndRecord struct {
-}
+// helper functions
 
 func IsHeader(line string) bool {
-	if !strings.HasPrefix(line, "1") {
+	if !strings.HasPrefix(line, "1") || len(line) != HeaderLength {
 		return false
 	}
-	if len(line) != 120 {
-		return false
-	}
-
 	return true
 }
 func IsData(line string) bool {
-	return false
+	if len(line) != DataLength || line[0:1] != "2" {
+		return false
+	}
+	return true
 }
 func IsTrailer(line string) bool {
-	return false
+	if len(line) < TrailerLength || line[0:1] != "8" {
+		return false
+	}
+	return true
 }
 func IsEndRecord(line string) bool {
-	return false
+	if len(line) != EndLength || line[0:1] != "9" {
+		return false
+	}
+	return true
 }
