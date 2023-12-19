@@ -8,10 +8,10 @@ import (
 type Encoding int
 
 const (
-	HeaderLength  = 120 // 103?
-	DataLength    = 120 // 106?
-	TrailerLength = 120 // 19?
-	EndLength     = 120 // 1?
+	MinHeaderLength  = 103
+	MinDataLength    = 133
+	MinTrailerLength = 19
+	MinEndLength     = 1
 )
 
 const (
@@ -94,26 +94,26 @@ type Trailer struct {
 
 // helper functions
 
-func IsHeader(line string) bool {
-	if !strings.HasPrefix(line, "1") || len(line) != HeaderLength {
+func IsHeader(line []rune) bool {
+	if len(line) < MinHeaderLength || !strings.HasPrefix(string(line), "1") {
 		return false
 	}
 	return true
 }
-func IsData(line string) bool {
-	if len(line) != DataLength || line[0:1] != "2" {
+func IsData(line []rune) bool {
+	if len(line) < MinDataLength || string(line[0:1]) != "2" {
 		return false
 	}
 	return true
 }
-func IsTrailer(line string) bool {
-	if len(line) < TrailerLength || line[0:1] != "8" {
+func IsTrailer(line []rune) bool {
+	if len(line) < MinTrailerLength || string(line[0:1]) != "8" {
 		return false
 	}
 	return true
 }
-func IsEndRecord(line string) bool {
-	if len(line) != EndLength || line[0:1] != "9" {
+func IsEndRecord(line []rune) bool {
+	if len(line) < MinEndLength || string(line[0:1]) != "9" {
 		return false
 	}
 	return true

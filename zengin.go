@@ -11,7 +11,6 @@ import (
 	"io"
 	"log"
 	"strconv"
-	"strings"
 )
 
 type Reader interface {
@@ -57,8 +56,6 @@ func guessEncoding(file Reader) (*bufio.Scanner, zengin.Encoding, error) {
 func parse(file Reader) ([]zengin.Transfer, error) {
 
 	scanner, encoding, err := guessEncoding(file)
-	//tmp
-	fmt.Printf("encoding: %v\n", encoding)
 	if err != nil {
 		return nil, err
 	}
@@ -67,14 +64,11 @@ func parse(file Reader) ([]zengin.Transfer, error) {
 	var header zengin.Header
 
 	for scanner.Scan() {
-		line := scanner.Text()
+		line := []rune(scanner.Text())
 
 		var err error
 		switch {
 		case zengin.IsHeader(line):
-			//tmp
-			fmt.Printf("Recoginized header: %v\n", line)
-
 			var data []zengin.Data
 			var trailer zengin.Trailer
 
@@ -84,14 +78,12 @@ func parse(file Reader) ([]zengin.Transfer, error) {
 			}
 
 			for scanner.Scan() {
-				line = scanner.Text()
+				line = []rune(scanner.Text())
 
 				if !zengin.IsData(line) {
 					if !zengin.IsTrailer(line) {
-						return nil, errors.New("unexpected record type: " + line)
+						return nil, errors.New("unexpected record type: " + string(line))
 					}
-					//tmp
-					fmt.Printf("Recoginized trailer: %v\n", line)
 					trailer, err = parseTrailer(line)
 					newTransfers, err := createTransfers(header, data, trailer)
 					if err != nil {
@@ -101,9 +93,6 @@ func parse(file Reader) ([]zengin.Transfer, error) {
 					break
 				}
 
-				//tmp
-				fmt.Printf("Recoginized data: %v\n", line)
-
 				record, err := parseData(line)
 				if err != nil {
 					return nil, err
@@ -112,18 +101,16 @@ func parse(file Reader) ([]zengin.Transfer, error) {
 				data = append(data, record)
 			}
 		case zengin.IsEndRecord(line):
-			//tmp
-			fmt.Printf("Recoginized end record: %v\n", line)
 			continue
 		default:
-			return nil, errors.New("unknown record type: " + line)
+			return nil, errors.New("unknown record type: " + string(line))
 		}
 	}
 
 	if err := scanner.Err(); err != nil {
 		return nil, err
 	}
-	if !zengin.IsEndRecord(scanner.Text()) {
+	if !zengin.IsEndRecord([]rune(scanner.Text())) {
 		return nil, errors.New("end reached without end record")
 	}
 	if len(transfers) == 0 {
@@ -137,158 +124,167 @@ func createTransfers(header zengin.Header, data []zengin.Data, trailer zengin.Tr
 	return []zengin.Transfer{}, nil
 }
 
-func parseHeader(line string, encoding zengin.Encoding) (zengin.Header, error) {
-	if len(line) < zengin.HeaderLength { // Ensure line has enough characters
+func parseHeader(line []rune, encoding zengin.Encoding) (zengin.Header, error) {
+	if len(line) < zengin.MinHeaderLength { // Ensure line has enough characters
 		return zengin.Header{}, errors.New("header line too short")
 	}
 
 	header := zengin.Header{}
 
-	recordType := line[0:1]
+	recordType := string(line[0:1])
 	if recordType != "1" {
 		return zengin.Header{}, errors.New("header record type is not 1")
 	}
 	header.RecordType = recordType
 
-	categoryCode, err := parseCategoryCode(line[1:3])
+	categoryCode, err := parseCategoryCode(string(line[1:3]))
+	fmt.Printf("categoryCode: %v\n", categoryCode)
 	if err != nil {
 		return zengin.Header{}, err
 	}
 	header.CategoryCode = categoryCode
 
-	encodingType := line[3:4]
-	if encoding == zengin.EncodingShiftJIS && encodingType != "0" {
+	encodingType := string(line[3:4])
+	fmt.Printf("encodingType: %v\n", encodingType)
+	if encoding != zengin.EncodingShiftJIS && encodingType == "0" {
 		return zengin.Header{}, errors.New("unsupported encoding type: " + encodingType)
 	}
 	header.EncodingType = encodingType
 
-	senderCode, err := parseSenderCode(line[4:14])
+	senderCode, err := parseSenderCode(string(line[4:14]))
+	fmt.Printf("senderCode: %v\n", senderCode)
 	if err != nil {
 		return zengin.Header{}, errors.New("invalid sender code: " + err.Error())
 	}
 	header.SenderCode = senderCode
 
-	senderName := line[14:54] // Trim spaces for names
-	header.SenderName = strings.TrimSpace(senderName)
+	header.SenderName = string(line[14:54])
+	fmt.Printf("senderName: %v\n", header.SenderName)
 
-	transactionDate := line[54:58]
-	header.TransactionDate = transactionDate
+	header.TransactionDate = string(line[54:58])
+	fmt.Printf("transactionDate: %v\n", header.TransactionDate)
 
-	bankCode := line[58:62]
+	bankCode := string(line[58:62])
+	fmt.Printf("bankCode: %v\n", bankCode)
 	if _, err := strconv.Atoi(bankCode); err != nil {
 		return zengin.Header{}, errors.New("invalid bank code: contains non-numeric characters")
 	}
 	header.BankCode = bankCode
 
-	header.BankName = strings.TrimSpace(line[62:77])
+	header.BankName = string(line[62:77])
+	fmt.Printf("bankName: %v\n", header.BankName)
 
-	branchCode := line[77:80]
+	branchCode := string(line[77:80])
+	fmt.Printf("branchCode: %v\n", branchCode)
 	if _, err := strconv.Atoi(branchCode); err != nil {
 		return zengin.Header{}, errors.New("invalid branch code: contains non-numeric characters")
 	}
 	header.BankCode = bankCode
 
-	header.BranchName = strings.TrimSpace(line[80:95])
+	header.BranchName = string(line[80:95])
+	fmt.Printf("branchName: %v\n", header.BranchName)
 
-	accountType, err := parseAccountType(line[95:96])
+	accountType, err := parseAccountType(string(line[95:96]))
+	fmt.Printf("accountType: %v\n", accountType)
 	if err != nil {
 		return zengin.Header{}, err
 	}
 	header.AccountType = accountType
 
-	header.AccountNumber = line[96:103]
+	header.AccountNumber = string(line[96:103])
+	fmt.Printf("accountNumber: %v\n", header.AccountNumber)
 
 	return zengin.Header{}, nil
 }
 
-func parseData(line string) (zengin.Data, error) {
-	if len(line) < zengin.DataLength { // Ensure the line is of expected length
+func parseData(line []rune) (zengin.Data, error) {
+	if len(line) < zengin.MinDataLength { // Ensure the line is of expected length
 		return zengin.Data{}, errors.New("data line too short")
 	}
 
 	data := zengin.Data{}
 
-	recordType := line[0:1]
+	recordType := string(line[0:1])
 	if recordType != "2" {
 		return zengin.Data{}, errors.New("data record type is not 2")
 	}
 	data.RecordType = recordType
 
-	bankCode := line[1:5]
+	bankCode := string(line[1:5])
 	if _, err := strconv.Atoi(bankCode); err != nil {
 		return zengin.Data{}, errors.New("invalid bank code: contains non-numeric characters")
 	}
 	data.RecipientBankCode = bankCode
 
-	data.RecipientBankName = strings.TrimSpace(line[5:20])
-	recipientBranchCode := line[20:23]
+	data.RecipientBankName = string(line[5:20])
+	recipientBranchCode := string(line[20:23])
 	if _, err := strconv.Atoi(recipientBranchCode); err != nil {
 		return zengin.Data{}, errors.New("invalid recipient branch code: contains non-numeric characters")
 	}
 	data.RecipientBranchCode = recipientBranchCode
 
-	data.RecipientBranchName = strings.TrimSpace(line[23:38])
+	data.RecipientBranchName = string(line[23:38])
 
-	exchangeOfficeCode := line[38:42] // unused
+	exchangeOfficeCode := string(line[38:42]) // unused
 	if _, err := strconv.Atoi(exchangeOfficeCode); err != nil {
 		return zengin.Data{}, errors.New("invalid exchange office code: contains non-numeric characters")
 	}
 	data.ExchangeOfficeCode = exchangeOfficeCode
 
-	accountType, err := parseAccountType(line[42:43])
+	accountType, err := parseAccountType(string(line[42:43]))
 	if err != nil {
 		return zengin.Data{}, err
 	}
 	data.AccountType = accountType
 
-	accountNumber := line[43:50]
+	accountNumber := string(line[43:50])
 	if _, err := strconv.Atoi(accountNumber); err != nil {
 		return zengin.Data{}, errors.New("invalid account number: contains non-numeric characters")
 	}
 
-	data.RecipientName = strings.TrimSpace(line[50:80])
+	data.RecipientName = string(line[50:80])
 
 	// Parse transfer amount as integer
-	amount, err := strconv.ParseUint(strings.TrimSpace(line[80:90]), 10, 64)
+	amount, err := strconv.ParseUint(string(line[80:90]), 10, 64)
 	if err != nil {
 		return zengin.Data{}, fmt.Errorf("invalid transfer amount: %v", err)
 	}
 	data.TransferAmount = amount
 
-	data.NewCode = line[90:91] // unused
-	data.CustomerCode1 = strings.TrimSpace(line[91:101])
-	data.CustomerCode2 = strings.TrimSpace(line[101:111])
-	data.EDIInformation = strings.TrimSpace(line[111:131])
-	data.TransferCategory = line[131:132] // unused
+	data.NewCode = string(line[90:91]) // unused
+	data.CustomerCode1 = string(line[91:101])
+	data.CustomerCode2 = string(line[101:111])
+	data.EDIInformation = string(line[111:131])
+	data.TransferCategory = string(line[131:132]) // unused
 	if _, err := strconv.Atoi(data.TransferCategory); err != nil {
 		return zengin.Data{}, errors.New("invalid transfer category: contains non-numeric characters")
 	}
-	data.Identification = line[132:133]
+	data.Identification = string(line[132:133])
 
 	return data, nil
 }
 
-func parseTrailer(line string) (zengin.Trailer, error) {
-	if len(line) < zengin.TrailerLength { // Ensure the line is of expected length
+func parseTrailer(line []rune) (zengin.Trailer, error) {
+	if len(line) < zengin.MinTrailerLength { // Ensure the line is of expected length
 		return zengin.Trailer{}, errors.New("trailer line too short")
 	}
 
 	trailer := zengin.Trailer{
-		RecordType: line[0:1],
+		RecordType: string(line[0:1]),
 	}
 	if trailer.RecordType != "8" {
 		return zengin.Trailer{}, errors.New("invalid record type for trailer")
 	}
 
 	// Parse TotalCount as integer
-	totalCount, err := strconv.Atoi(line[1:7])
+	totalCount, err := strconv.Atoi(string(line[1:7]))
 	if err != nil {
 		return zengin.Trailer{}, fmt.Errorf("invalid total count: %v", err)
 	}
 	trailer.TotalCount = totalCount
 
 	// Parse TotalAmount as integer
-	totalAmount, err := strconv.ParseUint(line[7:19], 10, 64)
+	totalAmount, err := strconv.ParseUint(string(line[7:19]), 10, 64)
 	if err != nil {
 		return zengin.Trailer{}, fmt.Errorf("invalid total amount: %v", err)
 	}
