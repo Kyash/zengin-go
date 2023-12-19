@@ -139,17 +139,11 @@ func parseHeader(line string, encoding zengin.Encoding) (zengin.Header, error) {
 	}
 	header.RecordType = recordType
 
-	categoryCode := line[1:3]
-	switch categoryCode {
-	case "21":
-		header.CategoryCode = zengin.CategoryCodeCombination
-	case "11", "71":
-		header.CategoryCode = zengin.CategoryCodePayment
-	case "12", "72":
-		header.CategoryCode = zengin.CategoryCodeBonus
-	default:
-		return zengin.Header{}, errors.New("unknown category code: " + categoryCode)
+	categoryCode, err := parseCategoryCode(line[1:3])
+	if err != nil {
+		return zengin.Header{}, err
 	}
+	header.CategoryCode = categoryCode
 
 	encodingType := line[3:4]
 	if encoding == zengin.EncodingShiftJIS && encodingType != "0" {
@@ -185,28 +179,15 @@ func parseHeader(line string, encoding zengin.Encoding) (zengin.Header, error) {
 
 	header.BranchName = strings.TrimSpace(line[80:95])
 
-	accountType := line[95:96]
-	switch accountType {
-	case "1":
-		header.AccountType = zengin.AccountTypeRegular
-	case "2":
-		header.AccountType = zengin.AccountTypeChecking
-	case "4":
-		header.AccountType = zengin.AccountTypeSavings
-	default:
-		return zengin.Header{}, errors.New("invalid account type: " + accountType)
+	accountType, err := parseAccountType(line[95:96])
+	if err != nil {
+		return zengin.Header{}, err
 	}
+	header.AccountType = accountType
 
 	header.AccountNumber = line[96:103]
 
 	return zengin.Header{}, nil
-}
-
-func parseSenderCode(senderCode string) (string, error) {
-	if len(senderCode) != 10 {
-		return "", errors.New("sender code must be 10 digits")
-	}
-	return senderCode, nil
 }
 
 func parseData(line string) (zengin.Data, error) {
@@ -243,17 +224,11 @@ func parseData(line string) (zengin.Data, error) {
 	}
 	data.ExchangeOfficeCode = exchangeOfficeCode
 
-	accountType := line[42:43]
-	switch accountType {
-	case "1":
-		data.AccountType = zengin.AccountTypeRegular
-	case "2":
-		data.AccountType = zengin.AccountTypeChecking
-	case "4":
-		data.AccountType = zengin.AccountTypeSavings
-	default:
-		return zengin.Data{}, errors.New("invalid account type: " + accountType)
+	accountType, err := parseAccountType(line[42:43])
+	if err != nil {
+		return zengin.Data{}, err
 	}
+	data.AccountType = accountType
 
 	accountNumber := line[43:50]
 	if _, err := strconv.Atoi(accountNumber); err != nil {
@@ -309,4 +284,39 @@ func parseTrailer(line string) (zengin.Trailer, error) {
 	trailer.TotalAmount = totalAmount
 
 	return trailer, nil
+}
+
+// Helper functions
+
+func parseCategoryCode(categoryCode string) (zengin.CategoryCode, error) {
+	switch categoryCode {
+	case "21":
+		return zengin.CategoryCodeCombination, nil
+	case "11", "71":
+		return zengin.CategoryCodePayment, nil
+	case "12", "72":
+		return zengin.CategoryCodeBonus, nil
+	default:
+		return zengin.CategoryCodeUndefined, errors.New("unknown category code: " + categoryCode)
+	}
+}
+
+func parseSenderCode(senderCode string) (string, error) {
+	if len(senderCode) != 10 {
+		return "", errors.New("sender code must be 10 digits")
+	}
+	return senderCode, nil
+}
+
+func parseAccountType(accountType string) (zengin.AccountType, error) {
+	switch accountType {
+	case "1":
+		return zengin.AccountTypeRegular, nil
+	case "2":
+		return zengin.AccountTypeChecking, nil
+	case "4":
+		return zengin.AccountTypeSavings, nil
+	default:
+		return zengin.AccountTypeUndefined, errors.New("invalid account type: " + accountType)
+	}
 }

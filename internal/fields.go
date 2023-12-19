@@ -34,6 +34,7 @@ type Transfer struct {
 type CategoryCode int
 
 const (
+	CategoryCodeUndefined   CategoryCode = iota
 	CategoryCodeCombination CategoryCode = iota
 	CategoryCodePayment     CategoryCode = iota
 	CategoryCodeBonus       CategoryCode = iota
