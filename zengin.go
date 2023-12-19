@@ -9,6 +9,7 @@ import (
 	"golang.org/x/text/transform"
 	"io"
 	"log"
+	"strconv"
 	"strings"
 )
 
@@ -26,14 +27,13 @@ func ParseFile(reader Reader) ([][]string, error) {
 	return zengin.ConvertToTable(transfers), nil
 }
 
-func parse(file Reader) ([]zengin.Transfer, error) {
-
+func guessEncoding(file Reader) (*bufio.Scanner, zengin.Encoding, error) {
 	var encoding zengin.Encoding
 	reader := bufio.NewReader(file)
 	peekBytes, err := reader.Peek(1024)
 	if err != nil && err != io.EOF {
 		log.Fatal("couldn't read from file", "error", err)
-		return nil, err
+		return nil, zengin.EncodingUndefined, err
 	}
 
 	// Ignore "certain" (3rd value), as during testing it was always false, even though it correctly detects utf-8.
@@ -50,43 +50,68 @@ func parse(file Reader) ([]zengin.Transfer, error) {
 		scanner = bufio.NewScanner(transform.NewReader(reader, japanese.ShiftJIS.NewDecoder()))
 	}
 
-	var transfers []zengin.Transfer
-	var endFound bool
+	return scanner, encoding, nil
+}
 
-	var data []zengin.Data
+func parse(file Reader) ([]zengin.Transfer, error) {
+
+	scanner, encoding, err := guessEncoding(file)
+	if err != nil {
+		return nil, err
+	}
+
+	var transfers []zengin.Transfer
 	var header zengin.Header
-	var trailer zengin.Trailer
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		var record zengin.Data
 
 		var err error
 		switch {
 		case zengin.IsHeader(line):
+
+			var data []zengin.Data
+			var trailer zengin.Trailer
+
 			header, err = parseHeader(line, encoding)
-		case zengin.IsData(line):
-			record, err = parseData(line)
-			data = append(data, record)
-		case zengin.IsTrailer(line):
-			trailer, err = parseTrailer(line)
+			if err != nil {
+				return nil, err
+			}
+
+			for scanner.Scan() {
+				line = scanner.Text()
+
+				if !zengin.IsData(line) {
+					if !zengin.IsTrailer(line) {
+						return nil, errors.New("unexpected record type: " + line)
+					}
+					trailer, err = parseTrailer(line)
+					newTransfers, err := createTransfers(header, data, trailer)
+					if err != nil {
+						return nil, err
+					}
+					transfers = append(transfers, newTransfers...)
+					break
+				}
+
+				record, err := parseData(line)
+				if err != nil {
+					return nil, err
+				}
+
+				data = append(data, record)
+			}
 		case zengin.IsEndRecord(line):
-			endFound = true
-			transfers, err = createTransfers(header, data, trailer), nil
+			continue
 		default:
 			return nil, errors.New("unknown record type: " + line)
 		}
-
-		if err != nil {
-			return nil, err
-		}
-
 	}
 
 	if err := scanner.Err(); err != nil {
 		return nil, err
 	}
-	if !endFound {
+	if !zengin.IsEndRecord(scanner.Text()) {
 		return nil, errors.New("end reached without end record")
 	}
 	if len(transfers) == 0 {
@@ -96,8 +121,8 @@ func parse(file Reader) ([]zengin.Transfer, error) {
 	return transfers, nil
 }
 
-func createTransfers(header zengin.Header, data []zengin.Data, trailer zengin.Trailer) []zengin.Transfer {
-	return []zengin.Transfer{}
+func createTransfers(header zengin.Header, data []zengin.Data, trailer zengin.Trailer) ([]zengin.Transfer, error) {
+	return []zengin.Transfer{}, nil
 }
 
 func parseHeader(line string, encoding zengin.Encoding) (zengin.Header, error) {
@@ -144,18 +169,24 @@ func parseHeader(line string, encoding zengin.Encoding) (zengin.Header, error) {
 	header.TransactionDate = transactionDate
 
 	bankCode := line[58:62]
+	if _, err := strconv.Atoi(bankCode); err != nil {
+		return zengin.Header{}, errors.New("invalid bank code: contains non-numeric characters")
+	}
+	header.BankCode = bankCode
 
-	bankName := strings.trimspace(line[62:77])
+	header.BankName = strings.TrimSpace(line[62:77])
 
 	branchCode := line[77:80]
+	if _, err := strconv.Atoi(branchCode); err != nil {
+		return zengin.Header{}, errors.New("invalid branch code: contains non-numeric characters")
+	}
+	header.BankCode = bankCode
 
-	branchName := strings.trimspace(line[80:95])
+	header.BranchName = strings.TrimSpace(line[80:95])
 
-	accountType := line[95:96]
+	header.AccountType = line[95:96]
 
-	accountNumber := line[96:103]
-
-	dummy := line[103:120] // assuming 17 characters for the dummy field
+	header.AccountNumber = line[96:103]
 
 	return zengin.Header{}, nil
 }

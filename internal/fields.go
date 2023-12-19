@@ -8,7 +8,8 @@ import (
 type Encoding int
 
 const (
-	EncodingShiftJIS Encoding = iota
+	EncodingUndefined Encoding = iota
+	EncodingShiftJIS  Encoding = iota
 	EncodingUTF8
 )
 
