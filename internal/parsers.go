@@ -141,7 +141,7 @@ func parseHeader(line []rune, encoding Encoding) (Header, error) {
 		header.SenderAccountNumber = string(line[96:103])
 	}
 
-	return Header{}, nil
+	return header, nil
 }
 
 func parseData(line []rune) (Data, error) {
@@ -191,6 +191,7 @@ func parseData(line []rune) (Data, error) {
 	if _, err := strconv.Atoi(accountNumber); err != nil {
 		return Data{}, errors.New("invalid account number: contains non-numeric characters")
 	}
+	data.RecipientAccountNumber = accountNumber
 
 	data.RecipientName = string(line[50:80])
 

@@ -31,7 +31,10 @@ func main() {
 	}
 
 	for _, record := range records {
-		println(record)
+		for _, field := range record {
+			print(field + ", ")
+		}
+		println()
 	}
 
 }
