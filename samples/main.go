@@ -14,7 +14,7 @@ func main() {
 	}
 
 	if len(os.Args) < 2 {
-		fileName = "zengin.txt"
+		fileName = "sample.txt"
 	} else {
 		fileName = os.Args[1]
 	}
