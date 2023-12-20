@@ -110,9 +110,6 @@ func parse(file Reader) ([]zengin.Transfer, error) {
 	if err := scanner.Err(); err != nil {
 		return nil, err
 	}
-	if !zengin.IsEndRecord([]rune(scanner.Text())) {
-		return nil, errors.New("end reached without end record")
-	}
 	if len(transfers) == 0 {
 		return nil, errors.New("no transfers found")
 	}
@@ -138,61 +135,58 @@ func parseHeader(line []rune, encoding zengin.Encoding) (zengin.Header, error) {
 	header.RecordType = recordType
 
 	categoryCode, err := parseCategoryCode(string(line[1:3]))
-	fmt.Printf("categoryCode: %v\n", categoryCode)
 	if err != nil {
 		return zengin.Header{}, err
 	}
 	header.CategoryCode = categoryCode
 
 	encodingType := string(line[3:4])
-	fmt.Printf("encodingType: %v\n", encodingType)
 	if encoding != zengin.EncodingShiftJIS && encodingType == "0" {
 		return zengin.Header{}, errors.New("unsupported encoding type: " + encodingType)
 	}
 	header.EncodingType = encodingType
 
 	senderCode, err := parseSenderCode(string(line[4:14]))
-	fmt.Printf("senderCode: %v\n", senderCode)
 	if err != nil {
 		return zengin.Header{}, errors.New("invalid sender code: " + err.Error())
 	}
 	header.SenderCode = senderCode
 
 	header.SenderName = string(line[14:54])
-	fmt.Printf("senderName: %v\n", header.SenderName)
 
 	header.TransactionDate = string(line[54:58])
-	fmt.Printf("transactionDate: %v\n", header.TransactionDate)
 
 	bankCode := string(line[58:62])
-	fmt.Printf("bankCode: %v\n", bankCode)
 	if _, err := strconv.Atoi(bankCode); err != nil {
 		return zengin.Header{}, errors.New("invalid bank code: contains non-numeric characters")
 	}
 	header.BankCode = bankCode
 
 	header.BankName = string(line[62:77])
-	fmt.Printf("bankName: %v\n", header.BankName)
 
 	branchCode := string(line[77:80])
-	fmt.Printf("branchCode: %v\n", branchCode)
 	if _, err := strconv.Atoi(branchCode); err != nil {
 		return zengin.Header{}, errors.New("invalid branch code: contains non-numeric characters")
 	}
 	header.BankCode = bankCode
 
-	header.BranchName = string(line[80:95])
-	fmt.Printf("branchName: %v\n", header.BranchName)
+	// Fields below are optional
 
-	accountType, err := parseAccountType(string(line[95:96]))
-	fmt.Printf("accountType: %v\n", accountType)
-	if err != nil {
-		return zengin.Header{}, err
+	if len(line) >= 95 {
+		header.BranchName = string(line[80:95])
 	}
-	header.AccountType = accountType
 
-	header.AccountNumber = string(line[96:103])
-	fmt.Printf("accountNumber: %v\n", header.AccountNumber)
+	if len(line) >= 96 {
+		accountType, err := parseAccountType(string(line[95:96]))
+		if err != nil {
+			return zengin.Header{}, err
+		}
+		header.AccountType = accountType
+	}
+
+	if len(line) >= 103 {
+		header.AccountNumber = string(line[96:103])
+	}
 
 	return zengin.Header{}, nil
 }
@@ -217,6 +211,7 @@ func parseData(line []rune) (zengin.Data, error) {
 	data.RecipientBankCode = bankCode
 
 	data.RecipientBankName = string(line[5:20])
+
 	recipientBranchCode := string(line[20:23])
 	if _, err := strconv.Atoi(recipientBranchCode); err != nil {
 		return zengin.Data{}, errors.New("invalid recipient branch code: contains non-numeric characters")
@@ -226,8 +221,10 @@ func parseData(line []rune) (zengin.Data, error) {
 	data.RecipientBranchName = string(line[23:38])
 
 	exchangeOfficeCode := string(line[38:42]) // unused
-	if _, err := strconv.Atoi(exchangeOfficeCode); err != nil {
-		return zengin.Data{}, errors.New("invalid exchange office code: contains non-numeric characters")
+	if exchangeOfficeCode != "    " {
+		if _, err := strconv.Atoi(exchangeOfficeCode); err != nil {
+			return zengin.Data{}, errors.New("invalid exchange office code: contains non-numeric characters")
+		}
 	}
 	data.ExchangeOfficeCode = exchangeOfficeCode
 
@@ -251,15 +248,33 @@ func parseData(line []rune) (zengin.Data, error) {
 	}
 	data.TransferAmount = amount
 
-	data.NewCode = string(line[90:91]) // unused
-	data.CustomerCode1 = string(line[91:101])
-	data.CustomerCode2 = string(line[101:111])
-	data.EDIInformation = string(line[111:131])
-	data.TransferCategory = string(line[131:132]) // unused
-	if _, err := strconv.Atoi(data.TransferCategory); err != nil {
-		return zengin.Data{}, errors.New("invalid transfer category: contains non-numeric characters")
+	newCode, err := parseNewCode(string(line[90:91])) // unused
+	if err != nil {
+		return zengin.Data{}, err
 	}
-	data.Identification = string(line[132:133])
+	data.NewCode = newCode
+
+	// Fields below are optional
+
+	if len(line) >= 111 {
+		data.Extra = string(line[91:111])
+	}
+
+	if len(line) >= 112 {
+		data.TransferCategory = string(line[111:112]) // unused
+		if _, err := strconv.Atoi(data.TransferCategory); err != nil {
+			return zengin.Data{}, errors.New("invalid transfer category: contains non-numeric characters")
+		}
+	}
+
+	if len(line) >= 113 {
+		ediPresent := string(line[112:113])
+		if ediPresent == "Y" {
+			data.EdiPresent = true
+		} else {
+			data.EdiPresent = false
+		}
+	}
 
 	return data, nil
 }
@@ -325,5 +340,18 @@ func parseAccountType(accountType string) (zengin.AccountType, error) {
 		return zengin.AccountTypeSavings, nil
 	default:
 		return zengin.AccountTypeUndefined, errors.New("invalid account type: " + accountType)
+	}
+}
+
+func parseNewCode(accountType string) (zengin.NewCode, error) {
+	switch accountType {
+	case "1":
+		return zengin.CodeFirstTransfer, nil
+	case "2":
+		return zengin.CodeUpdateTransfer, nil
+	case "0":
+		return zengin.CodeOther, nil
+	default:
+		return zengin.CodeUndefined, errors.New("invalid account type: " + accountType)
 	}
 }

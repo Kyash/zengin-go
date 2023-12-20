@@ -8,10 +8,10 @@ import (
 type Encoding int
 
 const (
-	MinHeaderLength  = 103
-	MinDataLength    = 133
-	MinTrailerLength = 19
-	MinEndLength     = 1
+	MinHeaderLength  = 80 // until "仕向支店番号"
+	MinDataLength    = 91 // until "新規コード"
+	MinTrailerLength = 19 // until "dummy"
+	MinEndLength     = 1  // until "dummy"
 )
 
 const (
@@ -49,6 +49,15 @@ const (
 	AccountTypeSavings
 )
 
+type NewCode int // 新規コード
+
+const (
+	CodeFirstTransfer  NewCode = 1 // 第 1 回振込分
+	CodeUpdateTransfer         = 2 // 変更分(被仕向銀行・支店、預金種目・口座番号)    //
+	CodeOther                  = 0
+	CodeUndefined              = -1
+)
+
 type Header struct {
 	RecordType      string       // 1 digit
 	CategoryCode    CategoryCode // 2 digits
@@ -76,13 +85,12 @@ type Data struct {
 	AccountNumber       string      // 7 digits
 	RecipientName       string      // 30 characters
 	TransferAmount      uint64      // 10 digits
-	NewCode             string      // 1 digit (unused)
-	CustomerCode1       string      // 10 characters
-	CustomerCode2       string      // 10 characters
-	EDIInformation      string      // 20 characters
-	TransferCategory    string      // 1 digit (unused)
-	Identification      string      // 1 character
-	Dummy               string      // 7 characters (unused)
+	NewCode             NewCode     // 1 digit (unused)
+	// Next 20 characters can be used for CustomerCode1&2, or EDIInformation
+	Extra            string // 20 characters
+	TransferCategory string // 1 digit (unused)
+	EdiPresent       bool   // 1 character, if "Y", EDIInformation is used
+	Dummy            string // 7 characters (unused)
 }
 
 type Trailer struct {
