@@ -8,6 +8,8 @@ import (
 	"golang.org/x/text/transform"
 	"io"
 	"log"
+	"strconv"
+	"time"
 )
 
 type Reader interface {
@@ -84,4 +86,31 @@ func parseNewCode(accountType string) (NewCode, error) {
 	default:
 		return CodeUndefined, errors.New("invalid account type: " + accountType)
 	}
+}
+
+func parseDate(date string) (string, error) {
+	_, err := time.Parse("0102", date)
+	if err != nil {
+		return "", nil
+	}
+	return date, err
+}
+func parseBankCode(bankCode string) (string, error) {
+	if _, err := strconv.Atoi(bankCode); err != nil {
+		return "", errors.New("invalid bank code: contains non-numeric characters")
+	}
+	if len(bankCode) != 4 {
+		return "", errors.New("bank code must be 4 digits")
+	}
+	return bankCode, nil
+}
+
+func parseBranchCode(bankCode string) (string, error) {
+	if _, err := strconv.Atoi(bankCode); err != nil {
+		return "", errors.New("invalid branch code: contains non-numeric characters")
+	}
+	if len(bankCode) != 3 {
+		return "", errors.New("branch code must be 3 digits")
+	}
+	return bankCode, nil
 }

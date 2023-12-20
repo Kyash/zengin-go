@@ -103,26 +103,30 @@ func parseHeader(line []rune, encoding Encoding) (Header, error) {
 
 	header.SenderName = string(line[14:54])
 
-	header.TransactionDate = string(line[54:58])
-
-	bankCode := string(line[58:62])
-	if _, err := strconv.Atoi(bankCode); err != nil {
-		return Header{}, errors.New("invalid bank code: contains non-numeric characters")
+	date, err := parseDate(string(line[54:58]))
+	if err != nil {
+		return Header{}, err
 	}
-	header.BankCode = bankCode
+	header.TransactionDate = date
 
-	header.BankName = string(line[62:77])
-
-	branchCode := string(line[77:80])
-	if _, err := strconv.Atoi(branchCode); err != nil {
-		return Header{}, errors.New("invalid branch code: contains non-numeric characters")
+	bankCode, err := parseBankCode(string(line[58:62]))
+	if err != nil {
+		return Header{}, err
 	}
-	header.BankCode = bankCode
+	header.SenderBankCode = bankCode
+
+	header.SenderBankName = string(line[62:77]) // optional
+
+	branchCode, err := parseBranchCode(string(line[77:80]))
+	if err != nil {
+		return Header{}, err
+	}
+	header.SenderBankCode = branchCode
 
 	// Fields below are optional
 
 	if len(line) >= 95 {
-		header.BranchName = string(line[80:95])
+		header.SenderBranchName = string(line[80:95])
 	}
 
 	if len(line) >= 96 {
@@ -130,11 +134,11 @@ func parseHeader(line []rune, encoding Encoding) (Header, error) {
 		if err != nil {
 			return Header{}, err
 		}
-		header.AccountType = accountType
+		header.SenderAccountType = accountType
 	}
 
 	if len(line) >= 103 {
-		header.AccountNumber = string(line[96:103])
+		header.SenderAccountNumber = string(line[96:103])
 	}
 
 	return Header{}, nil
@@ -153,23 +157,23 @@ func parseData(line []rune) (Data, error) {
 	}
 	data.RecordType = recordType
 
-	bankCode := string(line[1:5])
-	if _, err := strconv.Atoi(bankCode); err != nil {
-		return Data{}, errors.New("invalid bank code: contains non-numeric characters")
+	bankCode, err := parseBankCode(string(line[1:5]))
+	if err != nil {
+		return Data{}, err
 	}
 	data.RecipientBankCode = bankCode
 
-	data.RecipientBankName = string(line[5:20])
+	data.RecipientBankName = string(line[5:20]) // optional
 
-	recipientBranchCode := string(line[20:23])
-	if _, err := strconv.Atoi(recipientBranchCode); err != nil {
-		return Data{}, errors.New("invalid recipient branch code: contains non-numeric characters")
+	branchCode, err := parseBranchCode(string(line[20:23]))
+	if err != nil {
+		return Data{}, err
 	}
-	data.RecipientBranchCode = recipientBranchCode
+	data.RecipientBranchCode = branchCode
 
-	data.RecipientBranchName = string(line[23:38])
+	data.RecipientBranchName = string(line[23:38]) // optional
 
-	exchangeOfficeCode := string(line[38:42]) // unused
+	exchangeOfficeCode := string(line[38:42]) // optional
 	if exchangeOfficeCode != "    " {
 		if _, err := strconv.Atoi(exchangeOfficeCode); err != nil {
 			return Data{}, errors.New("invalid exchange office code: contains non-numeric characters")
@@ -181,7 +185,7 @@ func parseData(line []rune) (Data, error) {
 	if err != nil {
 		return Data{}, err
 	}
-	data.AccountType = accountType
+	data.RecipientAccountType = accountType
 
 	accountNumber := string(line[43:50])
 	if _, err := strconv.Atoi(accountNumber); err != nil {
