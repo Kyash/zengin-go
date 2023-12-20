@@ -25,7 +25,7 @@ func main() {
 	}
 	defer file.Close()
 
-	records, err := zengin.ParseFile(file)
+	records, err := zengin.ParseToString(file)
 	if err != nil {
 		log.Fatal(err)
 	}
