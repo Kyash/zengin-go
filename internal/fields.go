@@ -16,7 +16,7 @@ const (
 
 const (
 	EncodingUndefined Encoding = iota
-	EncodingShiftJIS  Encoding = iota
+	EncodingShiftJIS
 	EncodingUTF8
 )
 
@@ -34,19 +34,19 @@ type Transfer struct {
 type CategoryCode int
 
 const (
-	CategoryCodeUndefined   CategoryCode = iota
-	CategoryCodeCombination CategoryCode = iota
-	CategoryCodePayment     CategoryCode = iota
-	CategoryCodeBonus       CategoryCode = iota
+	CategoryCodeUndefined CategoryCode = iota
+	CategoryCodeCombination
+	CategoryCodePayment
+	CategoryCodeBonus
 )
 
 type AccountType int
 
 const (
 	AccountTypeUndefined AccountType = iota
-	AccountTypeRegular   AccountType = iota
-	AccountTypeChecking  AccountType = iota
-	AccountTypeSavings   AccountType = iota
+	AccountTypeRegular
+	AccountTypeChecking
+	AccountTypeSavings
 )
 
 type Header struct {
