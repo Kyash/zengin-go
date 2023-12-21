@@ -96,21 +96,22 @@ func parseDate(date string) (string, error) {
 	return date, err
 }
 func parseBankCode(bankCode string) (string, error) {
-	if _, err := strconv.Atoi(bankCode); err != nil {
-		return "", errors.New("invalid bank code: contains non-numeric characters")
-	}
 	if len(bankCode) != 4 {
 		return "", errors.New("bank code must be 4 digits")
+	}
+	if _, err := strconv.Atoi(bankCode); err != nil {
+		return "", errors.New("invalid bank code: contains non-numeric characters: " +
+			bankCode + "Error: " + err.Error())
 	}
 	return bankCode, nil
 }
 
-func parseBranchCode(bankCode string) (string, error) {
-	if _, err := strconv.Atoi(bankCode); err != nil {
-		return "", errors.New("invalid branch code: contains non-numeric characters")
-	}
-	if len(bankCode) != 3 {
+func parseBranchCode(branchCode string) (string, error) {
+	if len(branchCode) != 3 {
 		return "", errors.New("branch code must be 3 digits")
 	}
-	return bankCode, nil
+	if _, err := strconv.Atoi(branchCode); err != nil {
+		return "", errors.New("invalid branch code: contains non-numeric characters: " + branchCode)
+	}
+	return branchCode, nil
 }

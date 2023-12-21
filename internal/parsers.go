@@ -3,7 +3,18 @@ package internal
 import (
 	"errors"
 	"fmt"
+	"log"
 	"strconv"
+)
+
+type ParseState int
+
+const (
+	StateUnknown ParseState = iota
+	StateHeader
+	StateData
+	StateTrailer
+	StateEnd
 )
 
 func Parse(file Reader) ([]Transfer, error) {
@@ -15,9 +26,16 @@ func Parse(file Reader) ([]Transfer, error) {
 
 	var transfers []Transfer
 	var header Header
+	var data []Data
+	var trailer Trailer
+
+	var state = StateUnknown
 
 	for scanner.Scan() {
 		line := []rune(scanner.Text())
+		if len(line) == 0 {
+			continue
+		}
 
 		// Remove BOM if exists
 		if len(line) >= 1 && line[0] == '\ufeff' {
@@ -27,39 +45,50 @@ func Parse(file Reader) ([]Transfer, error) {
 		var err error
 		switch {
 		case IsHeader(line):
-			var data []Data
-			var trailer Trailer
-
+			if state == StateData || state == StateEnd {
+				return nil, errors.New("found record with missing trailer")
+			}
 			header, err = parseHeader(line, encoding)
 			if err != nil {
 				return nil, err
 			}
+			state = StateHeader
 
-			for scanner.Scan() {
-				line = []rune(scanner.Text())
-
-				if !IsData(line) {
-					if !IsTrailer(line) {
-						return nil, errors.New("unexpected record type: " + string(line))
-					}
-					trailer, err = parseTrailer(line)
-					newTransfers, err := createTransfers(header, data, trailer)
-					if err != nil {
-						return nil, err
-					}
-					transfers = append(transfers, newTransfers...)
-					break
-				}
-
-				record, err := parseData(line)
-				if err != nil {
-					return nil, err
-				}
-
-				data = append(data, record)
+		case IsData(line):
+			if state != StateHeader && state != StateData {
+				return nil, errors.New("data record found before header")
 			}
+			dataRecord, err := parseData(line)
+			if err != nil {
+				return nil, err
+			}
+			data = append(data, dataRecord)
+			state = StateData
+
+		case IsTrailer(line):
+			if state != StateData && state != StateHeader {
+				return nil, errors.New("trailer record found before header")
+			}
+			trailer, err = parseTrailer(line)
+			if err != nil {
+				return nil, err
+			}
+			// Create transfers from previous data before starting a new header
+			newTransfers, err := createTransfers(header, data, trailer)
+			if err != nil {
+				return nil, err
+			}
+			transfers = append(transfers, newTransfers...)
+			data = []Data{} // reset data for new header
+			state = StateTrailer
+
 		case IsEndRecord(line):
-			continue
+			if state != StateTrailer {
+				return nil, errors.New("end record found before trailer")
+			}
+			state = StateEnd
+			break
+
 		default:
 			return nil, errors.New("unknown record type: " + string(line))
 		}
@@ -68,8 +97,12 @@ func Parse(file Reader) ([]Transfer, error) {
 	if err := scanner.Err(); err != nil {
 		return nil, err
 	}
+	if state != StateEnd {
+		return nil, errors.New("unexpected end of file")
+	}
 	if len(transfers) == 0 {
-		return nil, errors.New("no transfers found")
+		log.Println("No transfers found in file")
+		return nil, nil
 	}
 
 	return transfers, nil
@@ -102,7 +135,7 @@ func parseHeader(line []rune, encoding Encoding) (Header, error) {
 
 	senderCode, err := parseSenderCode(string(line[4:14]))
 	if err != nil {
-		return Header{}, errors.New("invalid sender code: " + err.Error())
+		return Header{}, err
 	}
 	header.SenderCode = senderCode
 
