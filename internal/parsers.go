@@ -19,6 +19,11 @@ func Parse(file Reader) ([]Transfer, error) {
 	for scanner.Scan() {
 		line := []rune(scanner.Text())
 
+		// Remove BOM if exists
+		if len(line) >= 1 && line[0] == '\ufeff' {
+			line = line[1:]
+		}
+
 		var err error
 		switch {
 		case IsHeader(line):
