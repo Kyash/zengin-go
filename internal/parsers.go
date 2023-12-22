@@ -238,7 +238,7 @@ func parseData(line []rune) (Data, error) {
 	if err != nil {
 		return Data{}, fmt.Errorf("invalid transfer amount: %v", err)
 	}
-	data.TransferAmount = amount
+	data.Amount = amount
 
 	newCode, err := parseNewCode(string(line[90:91])) // unused
 	if err != nil {

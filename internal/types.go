@@ -16,14 +16,9 @@ const (
 )
 
 type Transfer struct {
-	SenderName    string
-	TransferDate  string
-	BankCode      string
-	BranchCode    string
-	AccountType   string
-	AccountNumber string
-	AccountName   string
-	Amount        uint64
+	Header
+	Data
+	Trailer
 }
 
 type CategoryCode int

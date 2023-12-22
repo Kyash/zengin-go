@@ -17,3 +17,9 @@ func ParseToString(reader zengin.Reader) ([][]string, error) {
 
 	return zengin.ConvertToTable(transfers), nil
 }
+
+// Parse /*
+// Parse 全銀 format file and return rows with all fields
+func Parse(reader zengin.Reader) {
+	// TODO: implement
+}

@@ -30,7 +30,7 @@ type Data struct {
 	RecipientAccountType   AccountType // 1 digit
 	RecipientAccountNumber string      // 7 digits
 	RecipientName          string      // 30 characters
-	TransferAmount         uint64      // 10 digits
+	Amount                 uint64      // 10 digits
 	NewCode                NewCode     // 1 digit (unused)
 	// Next 20 characters can be used for CustomerCode1&2, or EDIInformation
 	Extra            string // 20 characters

@@ -2,7 +2,6 @@ package internal
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 )
 
@@ -22,15 +21,16 @@ func createTransfers(header Header, data []Data, trailer Trailer) ([]Transfer, e
 
 	var transfers []Transfer
 	var transfer Transfer
+	// Transfer Kyashが必要としているデータしかないですが、後で全部入れるようにする。
 	for _, block := range data {
 		transfer.SenderName = strings.TrimSpace(header.SenderName)
-		transfer.TransferDate = header.TransactionDate
-		transfer.BankCode = block.RecipientBankCode
-		transfer.BranchCode = block.RecipientBranchCode
-		transfer.AccountType = strconv.Itoa(int(block.RecipientAccountType))
-		transfer.AccountNumber = block.RecipientAccountNumber
-		transfer.AccountName = strings.TrimSpace(block.RecipientName)
-		transfer.Amount = block.TransferAmount
+		transfer.TransactionDate = header.TransactionDate
+		transfer.RecipientBankCode = block.RecipientBankCode
+		transfer.RecipientBranchCode = block.RecipientBranchCode
+		transfer.RecipientAccountType = block.RecipientAccountType
+		transfer.RecipientAccountNumber = block.RecipientAccountNumber
+		transfer.RecipientName = strings.TrimSpace(block.RecipientName)
+		transfer.Amount = block.Amount
 		transfers = append(transfers, transfer)
 	}
 	return transfers, nil
@@ -39,7 +39,7 @@ func createTransfers(header Header, data []Data, trailer Trailer) ([]Transfer, e
 func sumAmount(data []Data) uint64 {
 	var sum uint64
 	for _, block := range data {
-		sum += block.TransferAmount
+		sum += block.Amount
 	}
 	return sum
 }
