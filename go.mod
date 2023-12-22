@@ -1,4 +1,4 @@
-module Kyash/zengin
+module github.com/Kyash/zengin-go
 
 go 1.21.5
 

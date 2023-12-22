@@ -1,7 +1,7 @@
 package zengin
 
 import (
-	zengin "Kyash/zengin/internal"
+	zengin "github.com/Kyash/zengin-go/internal"
 )
 
 // ParseToString /*

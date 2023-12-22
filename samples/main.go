@@ -1,7 +1,7 @@
 package main
 
 import (
-	"Kyash/zengin"
+	"github.com/Kyash/zengin-go"
 	"log"
 	"os"
 )
