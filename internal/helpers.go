@@ -91,7 +91,7 @@ func parseNewCode(accountType string) (NewCode, error) {
 func parseDate(date string) (string, error) {
 	_, err := time.Parse("0102", date)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 	return date, err
 }
