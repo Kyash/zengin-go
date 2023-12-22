@@ -93,7 +93,7 @@ func parseDate(date string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return date, err
+	return date, nil
 }
 func parseBankCode(bankCode string) (string, error) {
 	if len(bankCode) != 4 {
