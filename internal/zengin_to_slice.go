@@ -15,7 +15,6 @@ func ConvertToTable(t []Transfer) [][]string {
 		"口座番号",
 		"口座名義人",
 		"金額",
-		"\n",
 	}
 	result = append(result, header)
 	for _, transfer := range t {
@@ -35,6 +34,5 @@ func transferToStrings(t Transfer) []string {
 		t.RecipientAccountNumber,
 		t.RecipientName,
 		strconv.Itoa(int(t.Amount)),
-		"\n",
 	}
 }
