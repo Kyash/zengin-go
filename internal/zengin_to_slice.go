@@ -8,7 +8,6 @@ func ConvertToTable(t []Transfer) [][]string {
 	var result [][]string
 	header := []string{
 		"振込名義人",
-		"振込日",
 		"金融機関コード",
 		"支店コード",
 		"科目",
@@ -24,10 +23,9 @@ func ConvertToTable(t []Transfer) [][]string {
 }
 
 func transferToStrings(t Transfer) []string {
-	// 振込名義人,振込日,金融機関コード,支店コード,科目,口座番号,口座名義人,金額
+	// 振込名義人,金融機関コード,支店コード,科目,口座番号,口座名義人,金額
 	return []string{
 		t.SenderName,
-		t.TransactionDate,
 		t.RecipientBankCode,
 		t.RecipientBranchCode,
 		strconv.Itoa(int(t.RecipientAccountType)),
