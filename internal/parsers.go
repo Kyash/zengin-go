@@ -90,7 +90,8 @@ func Parse(file Reader) ([]Transfer, error) {
 			break
 
 		default:
-			return nil, errors.New("unknown record type: " + string(line))
+			// Some programs seem to put invisible characters, just ignore them
+			continue
 		}
 	}
 
@@ -184,7 +185,7 @@ func parseHeader(line []rune, encoding Encoding) (Header, error) {
 
 func parseData(line []rune) (Data, error) {
 	if len(line) < MinDataLength { // Ensure the line is of expected length
-		return Data{}, errors.New("data line too short")
+		return Data{}, errors.New("data line is too short")
 	}
 
 	data := Data{}
