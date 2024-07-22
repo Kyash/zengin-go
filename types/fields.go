@@ -1,4 +1,4 @@
-package internal
+package types
 
 import (
 	"strings"
@@ -10,7 +10,7 @@ type Header struct {
 	EncodingType        string       // 1 digit
 	SenderCode          string       // 10 digits
 	SenderName          string       // 40 characters
-	TransactionDate     string       // 4 digits (MMDD)
+	TransferDate        string       // 4 digits (MMDD)
 	SenderBankCode      string       // 4 digits
 	SenderBankName      string       // 15 characters
 	SenderBranchCode    string       // 3 digits

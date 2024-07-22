@@ -3,6 +3,7 @@ package internal
 import (
 	"errors"
 	"fmt"
+	"github.com/Kyash/zengin-go/types"
 	"log"
 	"strconv"
 )
@@ -17,17 +18,17 @@ const (
 	StateEnd
 )
 
-func Parse(file Reader) ([]Transfer, error) {
+func Parse(file Reader) ([]types.Transfer, error) {
 
 	scanner, encoding, err := guessEncoding(file)
 	if err != nil {
 		return nil, err
 	}
 
-	var transfers []Transfer
-	var header Header
-	var data []Data
-	var trailer Trailer
+	var transfers []types.Transfer
+	var header types.Header
+	var data []types.Data
+	var trailer types.Trailer
 
 	var state = StateUnknown
 
@@ -44,34 +45,34 @@ func Parse(file Reader) ([]Transfer, error) {
 
 		var err error
 		switch {
-		case IsHeader(line):
+		case types.IsHeader(line):
 			if state == StateData || state == StateEnd {
 				return nil, errors.New("found record with missing trailer")
 			}
 			header, err = parseHeader(line, encoding)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error parsing header: %w", err)
 			}
 			state = StateHeader
 
-		case IsData(line):
+		case types.IsData(line):
 			if state != StateHeader && state != StateData {
 				return nil, errors.New("data record found before header")
 			}
 			dataRecord, err := parseData(line)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error parsing data record: %w", err)
 			}
 			data = append(data, dataRecord)
 			state = StateData
 
-		case IsTrailer(line):
+		case types.IsTrailer(line):
 			if state != StateData && state != StateHeader {
 				return nil, errors.New("trailer record found before header")
 			}
 			trailer, err = parseTrailer(line)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error parsing trailer record: %w", err)
 			}
 			// Create transfers from previous data before starting a new header
 			newTransfers, err := createTransfers(header, data, trailer)
@@ -79,10 +80,10 @@ func Parse(file Reader) ([]Transfer, error) {
 				return nil, err
 			}
 			transfers = append(transfers, newTransfers...)
-			data = []Data{} // reset data for new header
+			data = []types.Data{} // reset data for new header
 			state = StateTrailer
 
-		case IsEndRecord(line):
+		case types.IsEndRecord(line):
 			if state != StateTrailer {
 				return nil, errors.New("end record found before trailer")
 			}
@@ -109,34 +110,34 @@ func Parse(file Reader) ([]Transfer, error) {
 	return transfers, nil
 }
 
-func parseHeader(line []rune, encoding Encoding) (Header, error) {
-	if len(line) < MinHeaderLength { // Ensure line has enough characters
-		return Header{}, errors.New("header line too short")
+func parseHeader(line []rune, encoding types.Encoding) (types.Header, error) {
+	if len(line) < types.MinHeaderLength { // Ensure line has enough characters
+		return types.Header{}, errors.New("header line too short")
 	}
 
-	header := Header{}
+	header := types.Header{}
 
 	recordType := string(line[0:1])
 	if recordType != "1" {
-		return Header{}, errors.New("header record type is not 1")
+		return types.Header{}, errors.New("header record type is not 1")
 	}
 	header.RecordType = recordType
 
 	categoryCode, err := parseCategoryCode(string(line[1:3]))
 	if err != nil {
-		return Header{}, err
+		return types.Header{}, err
 	}
 	header.CategoryCode = categoryCode
 
 	encodingType := string(line[3:4])
-	if encoding != EncodingShiftJIS && encodingType == "0" {
-		return Header{}, errors.New("unsupported encoding type: " + encodingType)
+	if encoding != types.EncodingShiftJIS && encodingType == "0" {
+		return types.Header{}, errors.New("unsupported encoding type: " + encodingType)
 	}
 	header.EncodingType = encodingType
 
 	senderCode, err := parseSenderCode(string(line[4:14]))
 	if err != nil {
-		return Header{}, err
+		return types.Header{}, err
 	}
 	header.SenderCode = senderCode
 
@@ -144,13 +145,13 @@ func parseHeader(line []rune, encoding Encoding) (Header, error) {
 
 	date, err := parseDate(string(line[54:58]))
 	if err != nil {
-		return Header{}, err
+		return types.Header{}, fmt.Errorf("invalid transfer date: %w", err)
 	}
-	header.TransactionDate = date
+	header.TransferDate = date
 
 	bankCode, err := parseBankCode(string(line[58:62]))
 	if err != nil {
-		return Header{}, err
+		return types.Header{}, err
 	}
 	header.SenderBankCode = bankCode
 
@@ -158,7 +159,7 @@ func parseHeader(line []rune, encoding Encoding) (Header, error) {
 
 	branchCode, err := parseBranchCode(string(line[77:80]))
 	if err != nil {
-		return Header{}, err
+		return types.Header{}, err
 	}
 	header.SenderBankCode = branchCode
 
@@ -171,7 +172,7 @@ func parseHeader(line []rune, encoding Encoding) (Header, error) {
 	if len(line) >= 96 {
 		accountType, err := parseAccountType(string(line[95:96]))
 		if err != nil {
-			return Header{}, err
+			return types.Header{}, err
 		}
 		header.SenderAccountType = accountType
 	}
@@ -183,22 +184,22 @@ func parseHeader(line []rune, encoding Encoding) (Header, error) {
 	return header, nil
 }
 
-func parseData(line []rune) (Data, error) {
-	if len(line) < MinDataLength { // Ensure the line is of expected length
-		return Data{}, errors.New("data line is too short")
+func parseData(line []rune) (types.Data, error) {
+	if len(line) < types.MinDataLength { // Ensure the line is of expected length
+		return types.Data{}, errors.New("data line is too short")
 	}
 
-	data := Data{}
+	data := types.Data{}
 
 	recordType := string(line[0:1])
 	if recordType != "2" {
-		return Data{}, errors.New("data record type is not 2")
+		return types.Data{}, errors.New("data record type is not 2")
 	}
 	data.RecordType = recordType
 
 	bankCode, err := parseBankCode(string(line[1:5]))
 	if err != nil {
-		return Data{}, err
+		return types.Data{}, err
 	}
 	data.RecipientBankCode = bankCode
 
@@ -206,7 +207,7 @@ func parseData(line []rune) (Data, error) {
 
 	branchCode, err := parseBranchCode(string(line[20:23]))
 	if err != nil {
-		return Data{}, err
+		return types.Data{}, err
 	}
 	data.RecipientBranchCode = branchCode
 
@@ -215,20 +216,20 @@ func parseData(line []rune) (Data, error) {
 	exchangeOfficeCode := string(line[38:42]) // optional
 	if exchangeOfficeCode != "    " {
 		if _, err := strconv.Atoi(exchangeOfficeCode); err != nil {
-			return Data{}, errors.New("invalid exchange office code: contains non-numeric characters")
+			return types.Data{}, errors.New("invalid exchange office code: contains non-numeric characters")
 		}
 	}
 	data.ExchangeOfficeCode = exchangeOfficeCode
 
 	accountType, err := parseAccountType(string(line[42:43]))
 	if err != nil {
-		return Data{}, err
+		return types.Data{}, err
 	}
 	data.RecipientAccountType = accountType
 
 	accountNumber := string(line[43:50])
 	if _, err := strconv.Atoi(accountNumber); err != nil {
-		return Data{}, errors.New("invalid account number: contains non-numeric characters")
+		return types.Data{}, errors.New("invalid account number: contains non-numeric characters")
 	}
 	data.RecipientAccountNumber = accountNumber
 
@@ -237,13 +238,13 @@ func parseData(line []rune) (Data, error) {
 	// Parse transfer amount as integer
 	amount, err := strconv.ParseUint(string(line[80:90]), 10, 64)
 	if err != nil {
-		return Data{}, fmt.Errorf("invalid transfer amount: %v", err)
+		return types.Data{}, fmt.Errorf("invalid transfer amount: %v", err)
 	}
 	data.Amount = amount
 
 	newCode, err := parseNewCode(string(line[90:91])) // unused
 	if err != nil {
-		return Data{}, err
+		return types.Data{}, err
 	}
 	data.NewCode = newCode
 
@@ -256,7 +257,7 @@ func parseData(line []rune) (Data, error) {
 	if len(line) >= 112 {
 		data.TransferCategory = string(line[111:112]) // unused
 		if _, err := strconv.Atoi(data.TransferCategory); err != nil {
-			return Data{}, errors.New("invalid transfer category: contains non-numeric characters")
+			return types.Data{}, errors.New("invalid transfer category: contains non-numeric characters")
 		}
 	}
 
@@ -272,29 +273,29 @@ func parseData(line []rune) (Data, error) {
 	return data, nil
 }
 
-func parseTrailer(line []rune) (Trailer, error) {
-	if len(line) < MinTrailerLength { // Ensure the line is of expected length
-		return Trailer{}, errors.New("trailer line too short")
+func parseTrailer(line []rune) (types.Trailer, error) {
+	if len(line) < types.MinTrailerLength { // Ensure the line is of expected length
+		return types.Trailer{}, errors.New("trailer line too short")
 	}
 
-	trailer := Trailer{
+	trailer := types.Trailer{
 		RecordType: string(line[0:1]),
 	}
 	if trailer.RecordType != "8" {
-		return Trailer{}, errors.New("invalid record type for trailer")
+		return types.Trailer{}, errors.New("invalid record type for trailer")
 	}
 
 	// Parse TotalCount as integer
 	totalCount, err := strconv.Atoi(string(line[1:7]))
 	if err != nil {
-		return Trailer{}, fmt.Errorf("invalid total count: %v", err)
+		return types.Trailer{}, fmt.Errorf("invalid total count: %v", err)
 	}
 	trailer.TotalCount = totalCount
 
 	// Parse TotalAmount as integer
 	totalAmount, err := strconv.ParseUint(string(line[7:19]), 10, 64)
 	if err != nil {
-		return Trailer{}, fmt.Errorf("invalid total amount: %v", err)
+		return types.Trailer{}, fmt.Errorf("invalid total amount: %v", err)
 	}
 	trailer.TotalAmount = totalAmount
 
