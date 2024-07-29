@@ -155,7 +155,7 @@ b`, [][]string{
 		t.Run(test.name, func(t *testing.T) {
 			reader := strings.NewReader(test.input)
 
-			records, err := ParseToString(reader)
+			records, err := ToCSVJa(reader)
 			if test.expectedError {
 				if err == nil {
 					t.Fatal("expected error, got nil")

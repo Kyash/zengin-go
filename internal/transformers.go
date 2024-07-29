@@ -2,14 +2,15 @@ package internal
 
 import (
 	"fmt"
+	"github.com/Kyash/zengin-go/types"
 	"strings"
 )
 
-func createTransfers(header Header, data []Data, trailer Trailer) ([]Transfer, error) {
-	if header == (Header{}) {
+func createTransfers(header types.Header, data []types.Data, trailer types.Trailer) ([]types.Transfer, error) {
+	if header == (types.Header{}) {
 		return nil, fmt.Errorf("header is empty")
 	}
-	if trailer == (Trailer{}) {
+	if trailer == (types.Trailer{}) {
 		return nil, fmt.Errorf("trailer is empty")
 	}
 	if len(data) != trailer.TotalCount {
@@ -19,12 +20,12 @@ func createTransfers(header Header, data []Data, trailer Trailer) ([]Transfer, e
 		return nil, fmt.Errorf("total amount mismatch: %d != %d", trailer.TotalAmount, sumAmount(data))
 	}
 
-	var transfers []Transfer
-	var transfer Transfer
+	var transfers []types.Transfer
+	var transfer types.Transfer
 	// Transfer Kyashが必要としているデータしかないですが、後で全部入れるようにする。
 	for _, block := range data {
 		transfer.SenderName = strings.TrimSpace(header.SenderName)
-		transfer.TransactionDate = header.TransactionDate
+		transfer.TransferDate = header.TransferDate
 		transfer.RecipientBankCode = block.RecipientBankCode
 		transfer.RecipientBranchCode = block.RecipientBranchCode
 		transfer.RecipientAccountType = block.RecipientAccountType
@@ -36,7 +37,7 @@ func createTransfers(header Header, data []Data, trailer Trailer) ([]Transfer, e
 	return transfers, nil
 }
 
-func sumAmount(data []Data) uint64 {
+func sumAmount(data []types.Data) uint64 {
 	var sum uint64
 	for _, block := range data {
 		sum += block.Amount

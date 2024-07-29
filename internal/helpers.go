@@ -3,6 +3,7 @@ package internal
 import (
 	"bufio"
 	"errors"
+	"github.com/Kyash/zengin-go/types"
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/encoding/japanese"
 	"golang.org/x/text/transform"
@@ -16,13 +17,13 @@ type Reader interface {
 	io.Reader
 }
 
-func guessEncoding(file Reader) (*bufio.Scanner, Encoding, error) {
-	var encoding Encoding
+func guessEncoding(file Reader) (*bufio.Scanner, types.Encoding, error) {
+	var encoding types.Encoding
 	reader := bufio.NewReader(file)
 	peekBytes, err := reader.Peek(1024)
 	if err != nil && err != io.EOF {
 		log.Fatal("couldn't read from file", "error", err)
-		return nil, EncodingUndefined, err
+		return nil, types.EncodingUndefined, err
 	}
 
 	// Ignore "certain" (3rd value), as during testing it was always false, even though it correctly detects utf-8.
@@ -31,27 +32,27 @@ func guessEncoding(file Reader) (*bufio.Scanner, Encoding, error) {
 	var scanner *bufio.Scanner
 	switch name {
 	case "utf-8":
-		encoding = EncodingUTF8
+		encoding = types.EncodingUTF8
 		scanner = bufio.NewScanner(reader)
 	// Shift-JIS can't be reliably detected, so we'll assume it's Shift-JIS if it's not UTF-8.
 	default:
-		encoding = EncodingShiftJIS
+		encoding = types.EncodingShiftJIS
 		scanner = bufio.NewScanner(transform.NewReader(reader, japanese.ShiftJIS.NewDecoder()))
 	}
 
 	return scanner, encoding, nil
 }
 
-func parseCategoryCode(categoryCode string) (CategoryCode, error) {
+func parseCategoryCode(categoryCode string) (types.CategoryCode, error) {
 	switch categoryCode {
 	case "21":
-		return CategoryCodeCombination, nil
+		return types.CategoryCodeCombination, nil
 	case "11", "71":
-		return CategoryCodePayment, nil
+		return types.CategoryCodePayment, nil
 	case "12", "72":
-		return CategoryCodeBonus, nil
+		return types.CategoryCodeBonus, nil
 	default:
-		return CategoryCodeUndefined, errors.New("unknown category code: " + categoryCode)
+		return types.CategoryCodeUndefined, errors.New("unknown category code: " + categoryCode)
 	}
 }
 
@@ -62,29 +63,29 @@ func parseSenderCode(senderCode string) (string, error) {
 	return senderCode, nil
 }
 
-func parseAccountType(accountType string) (AccountType, error) {
+func parseAccountType(accountType string) (types.AccountType, error) {
 	switch accountType {
 	case "1":
-		return AccountTypeRegular, nil
+		return types.AccountTypeRegular, nil
 	case "2":
-		return AccountTypeChecking, nil
+		return types.AccountTypeChecking, nil
 	case "4":
-		return AccountTypeSavings, nil
+		return types.AccountTypeSavings, nil
 	default:
-		return AccountTypeUndefined, errors.New("invalid account type: " + accountType)
+		return types.AccountTypeUndefined, errors.New("invalid account type: " + accountType)
 	}
 }
 
-func parseNewCode(accountType string) (NewCode, error) {
+func parseNewCode(accountType string) (types.NewCode, error) {
 	switch accountType {
 	case "1":
-		return CodeFirstTransfer, nil
+		return types.CodeFirstTransfer, nil
 	case "2":
-		return CodeUpdateTransfer, nil
+		return types.CodeUpdateTransfer, nil
 	case "0":
-		return CodeOther, nil
+		return types.CodeOther, nil
 	default:
-		return CodeUndefined, errors.New("invalid account type: " + accountType)
+		return types.CodeUndefined, errors.New("invalid account type: " + accountType)
 	}
 }
 
