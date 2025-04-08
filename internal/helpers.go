@@ -3,14 +3,15 @@ package internal
 import (
 	"bufio"
 	"errors"
-	"github.com/Kyash/zengin-go/types"
-	"golang.org/x/net/html/charset"
-	"golang.org/x/text/encoding/japanese"
-	"golang.org/x/text/transform"
 	"io"
 	"log"
 	"strconv"
 	"time"
+
+	"github.com/Kyash/zengin-go/types"
+	"golang.org/x/net/html/charset"
+	"golang.org/x/text/encoding/japanese"
+	"golang.org/x/text/transform"
 )
 
 type Reader interface {
@@ -76,8 +77,8 @@ func parseAccountType(accountType string) (types.AccountType, error) {
 	}
 }
 
-func parseNewCode(accountType string) (types.NewCode, error) {
-	switch accountType {
+func parseNewCode(newCode string) (types.NewCode, error) {
+	switch newCode {
 	case "1":
 		return types.CodeFirstTransfer, nil
 	case "2":
@@ -85,7 +86,7 @@ func parseNewCode(accountType string) (types.NewCode, error) {
 	case "0":
 		return types.CodeOther, nil
 	default:
-		return types.CodeUndefined, errors.New("invalid account type: " + accountType)
+		return types.CodeUndefined, errors.New("invalid new code: " + newCode)
 	}
 }
 
