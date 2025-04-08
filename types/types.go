@@ -45,6 +45,5 @@ const (
 	CodeFirstTransfer  NewCode = 1 // 第 1 回振込分
 	CodeUpdateTransfer         = 2 // 変更分(被仕向銀行・支店、預金種目・口座番号)    //
 	CodeOther                  = 0
-	CodeEmpty                  = ' '
 	CodeUndefined              = -1
 )
