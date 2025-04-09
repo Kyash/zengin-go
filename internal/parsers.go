@@ -3,9 +3,10 @@ package internal
 import (
 	"errors"
 	"fmt"
-	"github.com/Kyash/zengin-go/types"
 	"log"
 	"strconv"
+
+	"github.com/Kyash/zengin-go/types"
 )
 
 type ParseState int
@@ -242,7 +243,11 @@ func parseData(line []rune) (types.Data, error) {
 	}
 	data.Amount = amount
 
-	newCode, err := parseNewCode(string(line[90:91])) // unused
+	rawNewCode := string(line[90:91])
+	if rawNewCode == " " {
+		rawNewCode = "0"
+	}
+	newCode, err := parseNewCode(rawNewCode)
 	if err != nil {
 		return types.Data{}, err
 	}
@@ -256,6 +261,9 @@ func parseData(line []rune) (types.Data, error) {
 
 	if len(line) >= 112 {
 		data.TransferCategory = string(line[111:112]) // unused
+		if data.TransferCategory == " " {
+			data.TransferCategory = "0"
+		}
 		if _, err := strconv.Atoi(data.TransferCategory); err != nil {
 			return types.Data{}, errors.New("invalid transfer category: contains non-numeric characters")
 		}
