@@ -40,3 +40,12 @@ func ToCSVJa(reader zengin.Reader) ([][]string, error) {
 
 	return zengin.ToTableJa(transfers), nil
 }
+
+// TransferIterator provides a streaming interface for parsing Zengin format files.
+// It allows processing large files without loading all transfers into memory at once.
+type TransferIterator = zengin.TransferIterator
+
+// NewTransferIterator creates a new streaming iterator for parsing Zengin format files
+func NewTransferIterator(reader zengin.Reader) (*TransferIterator, error) {
+	return zengin.NewTransferIterator(reader)
+}
