@@ -60,7 +60,7 @@ go get github.com/Kyash/zengin-go
 See [batch sample](./samples/main.go)
 
 ### Streaming Processing
-See [streaming sample](./samples/streaming_example.go) for memory-efficient processing of large files
+See [streaming sample](./samples/streaming/main.go) for memory-efficient processing of large files
 
 ## Contributing
 

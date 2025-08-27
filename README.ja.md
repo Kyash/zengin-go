@@ -57,7 +57,7 @@ go get github.com/Kyash/zengin-go
 [バッチサンプル](./samples/main.go)を参照してください。
 
 ### ストリーミング処理
-大きなファイルのメモリ効率的な処理については[ストリーミングサンプル](./samples/streaming_example.go)を参照してください。
+大きなファイルのメモリ効率的な処理については[ストリーミングサンプル](./samples/streaming/main.go)を参照してください。
 
 ## コントリビュート
 
