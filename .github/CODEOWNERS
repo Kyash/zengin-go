@@ -3,4 +3,5 @@
 .circleci @Kyash/sre @konifar
 docker @Kyash/sre @konifar
 .github @Kyash/serverside @Kyash/sre
+scripts @Kyash/serverside @Kyash/sre
 .github/workflows/build-deploy* @Kyash/sre @konifar
