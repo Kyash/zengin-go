@@ -9,8 +9,10 @@
 
 ## インターフェース
 
-このライブラリは、全銀フォーマットのテキストファイルをCSV形式のデータまたはGo構造体に変換するために使用できます。
+このライブラリは、バッチ処理とストリーミング処理の両方のインターフェースを提供します：
 
+### バッチAPI
+すべてのデータをメモリに読み込むことが可能な小さなファイル用：
 ```go
 // 全銀フォーマットファイルを解析し、すべてのフィールドを含む行を返します
 func Parse(reader zengin.Reader) ([]types.Transfer, error)
@@ -23,6 +25,20 @@ func ToCSV(reader zengin.Reader) ([][]string, error)
 // 振込名義人, 振込日, 金融機関コード, 支店コード, 科目, 口座番号, 口座名義人, 金額
 func ToCSVJa(reader zengin.Reader) ([][]string, error)
 ```
+
+### ストリーミングAPI
+大きなファイルのメモリ効率的な処理用：
+```go
+// 振込を一つずつ処理するためのイテレータを作成
+func NewTransferIterator(reader zengin.Reader) *TransferIterator
+
+// イテレータのメソッド:
+func (it *TransferIterator) Next() *types.Transfer  // 次の振込を取得
+func (it *TransferIterator) HasMore() bool          // さらに振込があるかチェック
+func (it *TransferIterator) Err() error             // 解析エラーを取得
+```
+
+ストリーミングAPIは、ファイル全体をメモリに読み込むことなく、一度に一つのヘッダ→データ[]→トレーラブロックを処理するため、大きなファイルに適しています。
 
 解析可能なフィールドは [types/fields.go](./types/fields.go) にあります。
 
@@ -37,7 +53,11 @@ go get github.com/Kyash/zengin-go
 
 ## 使用方法
 
-[サンプル](./samples/main.go)を参照にしてください。
+### バッチ処理
+[バッチサンプル](./samples/main.go)を参照してください。
+
+### ストリーミング処理
+大きなファイルのメモリ効率的な処理については[ストリーミングサンプル](./samples/streaming/main.go)を参照してください。
 
 ## コントリビュート
 

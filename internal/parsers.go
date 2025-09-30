@@ -3,6 +3,7 @@ package internal
 import (
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"strconv"
 
@@ -19,96 +20,41 @@ const (
 	StateEnd
 )
 
-func Parse(file Reader) ([]types.Transfer, error) {
+type batchHandler struct {
+	transfers []types.Transfer
+}
 
-	scanner, encoding, err := guessEncoding(file)
+func (b *batchHandler) HandleBlock(header types.Header, data []types.Data, trailer types.Trailer) error {
+	newTransfers, err := createTransfers(header, data, trailer)
+	if err != nil {
+		return err
+	}
+	b.transfers = append(b.transfers, newTransfers...)
+	return nil
+}
+
+func (b *batchHandler) ShouldContinue() bool {
+	return true
+}
+
+func Parse(file Reader) ([]types.Transfer, error) {
+	engine, err := NewParsingEngine(file)
 	if err != nil {
 		return nil, err
 	}
 
-	var transfers []types.Transfer
-	var header types.Header
-	var data []types.Data
-	var trailer types.Trailer
-
-	var state = StateUnknown
-
-	for scanner.Scan() {
-		line := []rune(scanner.Text())
-		if len(line) == 0 {
-			continue
-		}
-
-		// Remove BOM if exists
-		if len(line) >= 1 && line[0] == '\ufeff' {
-			line = line[1:]
-		}
-
-		var err error
-		switch {
-		case types.IsHeader(line):
-			if state == StateData || state == StateEnd {
-				return nil, errors.New("found record with missing trailer")
-			}
-			header, err = parseHeader(line, encoding)
-			if err != nil {
-				return nil, fmt.Errorf("error parsing header: %w", err)
-			}
-			state = StateHeader
-
-		case types.IsData(line):
-			if state != StateHeader && state != StateData {
-				return nil, errors.New("data record found before header")
-			}
-			dataRecord, err := parseData(line)
-			if err != nil {
-				return nil, fmt.Errorf("error parsing data record: %w", err)
-			}
-			data = append(data, dataRecord)
-			state = StateData
-
-		case types.IsTrailer(line):
-			if state != StateData && state != StateHeader {
-				return nil, errors.New("trailer record found before header")
-			}
-			trailer, err = parseTrailer(line)
-			if err != nil {
-				return nil, fmt.Errorf("error parsing trailer record: %w", err)
-			}
-			// Create transfers from previous data before starting a new header
-			newTransfers, err := createTransfers(header, data, trailer)
-			if err != nil {
-				return nil, err
-			}
-			transfers = append(transfers, newTransfers...)
-			data = []types.Data{} // reset data for new header
-			state = StateTrailer
-
-		case types.IsEndRecord(line):
-			if state != StateTrailer {
-				return nil, errors.New("end record found before trailer")
-			}
-			state = StateEnd
-			break
-
-		default:
-			// Some programs seem to put invisible characters, just ignore them
-			continue
-		}
-	}
-
-	if err := scanner.Err(); err != nil {
+	handler := &batchHandler{}
+	err = engine.ParseWithHandler(handler)
+	if err != nil && err != io.EOF {
 		return nil, err
 	}
-	if state != StateEnd {
-		return nil, errors.New("unexpected end of file")
-	}
-	if len(transfers) == 0 {
+
+	if len(handler.transfers) == 0 {
 		log.Println("No transfers found in file")
 		return nil, nil
 	}
 
-	return transfers, nil
+	return handler.transfers, nil
 }
 
 func parseHeader(line []rune, encoding types.Encoding) (types.Header, error) {
