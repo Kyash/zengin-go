@@ -1,6 +1,6 @@
 module github.com/Kyash/zengin-go
 
-go 1.24.6
+go 1.20
 
 require (
 	golang.org/x/net v0.19.0
