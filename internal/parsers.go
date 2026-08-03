@@ -108,7 +108,7 @@ func parseHeader(line []rune, encoding types.Encoding) (types.Header, error) {
 	if err != nil {
 		return types.Header{}, err
 	}
-	header.SenderBankCode = branchCode
+	header.SenderBranchCode = branchCode
 
 	// Fields below are optional
 
